@@ -42,6 +42,16 @@ jobs:
       - name: Build web version
         run: npm run build
         
+      - name: Setup Android Cargo.toml
+        run: |
+          cd apps/android
+          cp src-tauri/Cargo.toml Cargo.toml
+          cp src-tauri/build.rs build.rs
+          mkdir -p src
+          cp src-tauri/src/lib.rs src/lib.rs
+          mkdir -p src-tauri/icons
+          cp icons/*.png src-tauri/icons/ 2>/dev/null || true
+          
       - name: Build Android APK
         run: |
           cd apps/android
