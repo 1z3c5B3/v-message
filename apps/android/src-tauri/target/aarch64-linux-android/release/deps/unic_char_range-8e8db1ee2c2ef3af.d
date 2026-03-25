@@ -1,0 +1,17 @@
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\aarch64-linux-android\release\deps\unic_char_range-8e8db1ee2c2ef3af.d: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\pkg_info.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\range.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\macros.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\step.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter_fused.rs
+
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\aarch64-linux-android\release\deps\libunic_char_range-8e8db1ee2c2ef3af.rlib: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\pkg_info.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\range.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\macros.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\step.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter_fused.rs
+
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\aarch64-linux-android\release\deps\libunic_char_range-8e8db1ee2c2ef3af.rmeta: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\pkg_info.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\range.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\macros.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\step.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter_fused.rs
+
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\lib.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\pkg_info.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\range.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\macros.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\step.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\unic-char-range-0.9.0\src\iter_fused.rs:
+
+# env-dep:CARGO_PKG_DESCRIPTION=UNIC — Unicode Character Tools — Character Range and Iteration
+# env-dep:CARGO_PKG_NAME=unic-char-range
+# env-dep:CARGO_PKG_VERSION=0.9.0

@@ -1,0 +1,14 @@
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\deps\serde-4e8ac6008ad0833b.d: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\build\serde-640883b76ad01f7d\out/private.rs
+
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\deps\libserde-4e8ac6008ad0833b.rlib: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\build\serde-640883b76ad01f7d\out/private.rs
+
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\deps\libserde-4e8ac6008ad0833b.rmeta: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\build\serde-640883b76ad01f7d\out/private.rs
+
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\build\serde-640883b76ad01f7d\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\Вадим\\Desktop\\v-msg-final\\apps\\android\\src-tauri\\target\\release\\build\\serde-640883b76ad01f7d\\out

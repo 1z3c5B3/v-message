@@ -1,0 +1,11 @@
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\aarch64-linux-android\release\deps\ipnet-8757ed50462f453b.d: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipext.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipnet.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\mask.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\parser.rs
+
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\aarch64-linux-android\release\deps\libipnet-8757ed50462f453b.rlib: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipext.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipnet.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\mask.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\parser.rs
+
+C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\aarch64-linux-android\release\deps\libipnet-8757ed50462f453b.rmeta: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipext.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipnet.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\mask.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\parser.rs
+
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\lib.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipext.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\ipnet.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\mask.rs:
+C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ipnet-2.12.0\src\parser.rs:
