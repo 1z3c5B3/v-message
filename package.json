@@ -1,6 +1,6 @@
 {
   "name": "v-message",
-  "version": "2.4.0",
+  "version": "2.8.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^7.6.1",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
     "firebase": "^10.13.0"
   },
   "devDependencies": {

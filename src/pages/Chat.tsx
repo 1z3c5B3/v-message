@@ -3,7 +3,7 @@ import { db } from "@/lib/firebase";
 import { useAuth, UserProfile } from "@/context/AuthContext";
 import {
   collection, addDoc, onSnapshot, query, orderBy, serverTimestamp,
-  doc, setDoc, deleteDoc, updateDoc,
+  doc, setDoc, deleteDoc, getDoc, updateDoc, where,
 } from "firebase/firestore";
 import VideoCall from "@/components/VideoCall";
 import IncomingCall from "@/components/IncomingCall";
@@ -32,8 +32,10 @@ interface Message {
   edited?: boolean;
   editedAt?: any;
   reactions?: { [emoji: string]: string[] };
+  starred?: boolean;
   thumbnailUrl?: string;
-  replyTo?: { messageId: string; text: string; username: string };
+  pinned?: boolean;
+  replyTo?: { messageId: string; text: string };
 }
 
 interface Props {
@@ -53,15 +55,32 @@ export default function Chat({ contact, onBack }: Props) {
   const [uploading, setUploading] = useState(false);
   const [calling, setCalling] = useState(false);
   const [showVoicePreview, setShowVoicePreview] = useState(false);
+  const [showStarred, setShowStarred] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [longPressMenu, setLongPressMenu] = useState<{ msg: Message; x: number; y: number } | null>(null);
-  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
-  const [replyMessage, setReplyMessage] = useState<Message | null>(null);
-  const [forwardMenu, setForwardMenu] = useState<{ msg: Message; x: number; y: number } | null>(null);
+  
+  // Context menu for messages
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; messageId: string; x: number; y: number } | null>(null);
+  const [showReactions, setShowReactions] = useState<{ visible: boolean; messageId: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  
+  // Chat settings
+  const [showChatSettings, setShowChatSettings] = useState(false);
+  const [chatName, setChatName] = useState("");
+  const [chatDescription, setChatDescription] = useState("");
+  const [isChannel, setIsChannel] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
+  const [showPinned, setShowPinned] = useState(false);
+  const [drafts, setDrafts] = useState<{[key: string]: string}>({});
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [disappearingMessages, setDisappearingMessages] = useState(false);
+  const [chatStats, setChatStats] = useState({ total: 0, mine: 0, theirs: 0 });
+  const [showStats, setShowStats] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimer = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const longPressTimer = useRef<any>(null);
 
   const {
     isRecording,
@@ -81,6 +100,28 @@ export default function Chat({ contact, onBack }: Props) {
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     });
   }, [convoId]);
+
+  // Drag and drop for files
+  useEffect(() => {
+    const handleDrop = async (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer?.files) {
+        handleAttachFiles(e.dataTransfer.files);
+      }
+    };
+    
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    
+    window.addEventListener('drop', handleDrop);
+    window.addEventListener('dragover', handleDragOver);
+    
+    return () => {
+      window.removeEventListener('drop', handleDrop);
+      window.removeEventListener('dragover', handleDragOver);
+    };
+  }, []);
 
   // Вставка из буфера обмена
   useEffect(() => {
@@ -148,6 +189,12 @@ export default function Chat({ contact, onBack }: Props) {
 
   const handleTextChange = async (val: string) => {
     setText(val);
+    
+    // Save draft
+    if (convoId && val.trim()) {
+      setDrafts(prev => ({ ...prev, [convoId]: val }));
+    }
+    
     if (!user || !convoId) return;
     const ref = doc(db, "conversations", convoId, "typing", user.uid);
     await setDoc(ref, { typing: true });
@@ -155,17 +202,22 @@ export default function Chat({ contact, onBack }: Props) {
     typingTimer.current = setTimeout(() => deleteDoc(ref).catch(() => {}), 3000);
   };
 
-  const send = async (msgText: string, type: "text" | "sticker" | "image" | "file" | "voice" = "text", fileData?: Partial<Message>) => {
-    if (!user || !profile || !convoId) {
-      console.error('Cannot send: user/profile/convoId not loaded');
-      return;
+  // Load draft on mount
+  useEffect(() => {
+    if (convoId && drafts[convoId]) {
+      setText(drafts[convoId]);
     }
-    if (type === "text" && !msgText.trim()) return;
+  }, [convoId]);
 
+  const send = async (msgText: string, type: "text" | "sticker" | "image" | "file" | "voice" = "text", fileData?: Partial<Message>) => {
+    if (!user || !profile || !convoId) return;
+    // Для стикеров и файлов разрешаем пустой текст
+    if (type === "text" && !msgText.trim()) return;
+    
     const ref = doc(db, "conversations", convoId, "typing", user.uid);
     deleteDoc(ref).catch(() => {});
-
-    const messageData: any = {
+    
+    const messageData = {
       text: msgText,
       type,
       uid: user.uid,
@@ -173,30 +225,17 @@ export default function Chat({ contact, onBack }: Props) {
       createdAt: serverTimestamp(),
       ...fileData,
     };
-
-    // Добавляем replyTo только если есть ответ
-    if (replyMessage) {
-      messageData.replyTo = {
-        messageId: replyMessage.id,
-        text: replyMessage.text.substring(0, 100),
-        username: replyMessage.username
-      };
-    }
-
+    
     await addDoc(collection(db, "conversations", convoId, "messages"), messageData);
-
+    
     // Отправляем push-уведомление через OneSignal (если это не стикер)
     if (type !== "sticker" && contact.uid) {
-      const notificationText = type === "image" ? "📷 Фото"
+      const notificationText = type === "image" ? "📷 Фото" 
         : type === "file" ? `📎 Файл: ${fileData?.fileName || "Файл"}`
         : type === "voice" ? "🎤 Голосовое сообщение"
         : type === "video" ? "🎬 Видео"
         : msgText.substring(0, 50);
       await sendNotification(contact.uid, profile.username, notificationText, "message");
-    }
-
-    if (replyMessage) {
-      setReplyMessage(null);
     }
   };
 
@@ -243,99 +282,160 @@ export default function Chat({ contact, onBack }: Props) {
     setShowVoicePreview(false);
   };
 
-  const handleLongPress = (msg: Message, e: React.MouseEvent | React.TouchEvent) => {
+  // Context menu functions
+  const handleLongPress = (e: React.MouseEvent | React.TouchEvent, message: Message) => {
     e.preventDefault();
-    e.stopPropagation();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
-    let clientX, clientY;
-    if ('touches' in e) {
-      clientX = e.touches[0]?.clientX || 0;
-      clientY = e.touches[0]?.clientY || 0;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    setLongPressMenu({ msg, x: clientX, y: clientY });
+    longPressTimer.current = setTimeout(() => {
+      setContextMenu({ visible: true, messageId: message.id, x: clientX, y: clientY });
+    }, 500);
   };
 
-  const handleDeleteMessage = async (msg: Message) => {
-    if (msg.uid !== user?.uid) {
-      alert('Можно удалить только свои сообщения');
-      return;
+  const handlePressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
-    if (!confirm('Удалить сообщение?')) return;
-    
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyTo(message);
+    closeContextMenu();
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    if (!convoId || !user?.uid) return;
     try {
-      await deleteDoc(doc(db, "conversations", convoId, "messages", msg.id));
-      setLongPressMenu(null);
+      const messagesRef = collection(db, "conversations", convoId, "messages");
+      const msgRef = doc(messagesRef, messageId);
+      const msgSnap = await getDoc(msgRef);
+      if (!msgSnap.exists()) return;
+
+      const msgData = msgSnap.data();
+      const reactions = msgData.reactions || {};
+
+      let userAlreadyReacted = false;
+      for (const [e, uids] of Object.entries(reactions)) {
+        if (uids.includes(user.uid)) {
+          reactions[e] = uids.filter((uid: string) => uid !== user.uid);
+          if (e === emoji) userAlreadyReacted = true;
+        }
+        if (reactions[e].length === 0) delete reactions[e];
+      }
+
+      if (!userAlreadyReacted) {
+        if (!reactions[emoji]) reactions[emoji] = [];
+        reactions[emoji].push(user.uid);
+      }
+
+      await updateDoc(msgRef, { reactions });
+      setShowReactions(null);
     } catch (err) {
-      console.error('Ошибка удаления:', err);
-      alert('Ошибка при удалении');
+      console.error("Add reaction error:", err);
     }
   };
 
-  const handleCopyMessage = async (msg: Message) => {
+  const handleForward = async (message: Message) => {
+    // TODO: Implement forward dialog
+    alert("Пересылка: " + message.text.substring(0, 50));
+    closeContextMenu();
+  };
+
+  const handleStar = async (messageId: string) => {
+    if (!convoId) return;
     try {
-      await navigator.clipboard.writeText(msg.text);
-      setLongPressMenu(null);
+      const messagesRef = collection(db, "conversations", convoId, "messages");
+      const msgSnap = await getDoc(doc(messagesRef, messageId));
+      if (!msgSnap.exists()) return;
+      const current = msgSnap.data().starred || false;
+      await updateDoc(doc(messagesRef, messageId), { starred: !current });
+      closeContextMenu();
     } catch (err) {
-      console.error('Ошибка копирования:', err);
+      console.error("Star error:", err);
     }
   };
 
-  const handleEditMessage = (msg: Message) => {
-    setEditingMessage(msg);
-    setText(msg.text);
-    setLongPressMenu(null);
-  };
-
-  const handleReplyMessage = (msg: Message) => {
-    setReplyMessage(msg);
-    setLongPressMenu(null);
-  };
-
-  const handleForwardMessage = (msg: Message, e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    let clientX, clientY;
-    if ('touches' in e) {
-      clientX = e.touches[0]?.clientX || 0;
-      clientY = e.touches[0]?.clientY || 0;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    setForwardMenu({ msg, x: clientX, y: clientY });
-    setLongPressMenu(null);
-  };
-
-  const saveEditMessage = async () => {
-    if (!editingMessage || !text.trim()) return;
-    
+  const handleDelete = async (messageId: string) => {
+    if (!convoId) return;
     try {
-      await updateDoc(doc(db, "conversations", convoId, "messages", editingMessage.id), {
-        text: text.trim(),
-        edited: true,
-        editedAt: serverTimestamp()
-      });
-      setEditingMessage(null);
-      setText("");
+      const messagesRef = collection(db, "conversations", convoId, "messages");
+      await deleteDoc(doc(messagesRef, messageId));
+      closeContextMenu();
     } catch (err) {
-      console.error('Ошибка редактирования:', err);
-      alert('Ошибка при редактировании');
+      console.error("Delete error:", err);
     }
   };
 
-  const cancelEdit = () => {
-    setEditingMessage(null);
-    setText("");
+  const handlePinMessage = async (messageId: string) => {
+    if (!convoId) return;
+    try {
+      const messagesRef = collection(db, "conversations", convoId, "messages");
+      const msgSnap = await getDoc(doc(messagesRef, messageId));
+      if (!msgSnap.exists()) return;
+      const current = msgSnap.data().pinned || false;
+      await updateDoc(doc(messagesRef, messageId), { pinned: !current });
+      
+      // Load pinned messages
+      const pinnedQuery = query(messagesRef, where("pinned", "==", true));
+      const pinnedSnap = await getDocs(pinnedQuery);
+      setPinnedMessages(pinnedSnap.docs.map(d => ({ id: d.id, ...d.data() }) as Message));
+      
+      closeContextMenu();
+    } catch (err) {
+      console.error("Pin error:", err);
+    }
   };
 
-  const cancelReply = () => {
-    setReplyMessage(null);
+  const handleAttachFiles = (files: FileList) => {
+    const fileArray = Array.from(files);
+    setAttachedFiles(prev => [...prev, ...fileArray]);
+  };
+
+  const calculateStats = () => {
+    const total = messages.length;
+    const mine = messages.filter(m => m.uid === user?.uid).length;
+    const theirs = total - mine;
+    setChatStats({ total, mine, theirs });
+    setShowStats(true);
+  };
+
+  const exportChat = async () => {
+    const chatData = {
+      contact: contact.username,
+      exportDate: new Date().toISOString(),
+      messages: messages.map(m => ({
+        username: m.username,
+        text: m.text,
+        type: m.type,
+        createdAt: m.createdAt?.toDate?.().toISOString()
+      }))
+    };
+    
+    const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-${contact.username}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Chat settings functions
+  const openChatSettings = () => {
+    setChatName(contact.username);
+    setShowChatSettings(true);
+  };
+
+  const saveChatSettings = async () => {
+    // TODO: Save chat settings to Firestore
+    alert("Настройки сохранены: " + chatName);
+    setShowChatSettings(false);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -400,12 +500,7 @@ export default function Chat({ contact, onBack }: Props) {
 
   const sendText = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!user || !profile || !convoId) {
-      alert('Ошибка: пользователь не загружен. Попробуйте обновить страницу.');
-      return;
-    }
-
+    
     // Быстрые команды
     if (text.startsWith('/me ')) {
       const action = text.substring(4);
@@ -419,7 +514,7 @@ export default function Chat({ contact, onBack }: Props) {
       setText("");
       return;
     }
-
+    
     await send(text.trim());
     setText("");
     setShowStickers(false);
@@ -473,6 +568,54 @@ export default function Chat({ contact, onBack }: Props) {
     }
   };
 
+  const startAudioCall = async () => {
+    if (!user?.uid) {
+      alert('Ошибка: пользователь не авторизован');
+      return;
+    }
+    if (!profile?.username) {
+      alert('Ошибка: профиль не загружен');
+      return;
+    }
+    if (calling) {
+      console.log('Звонок уже идёт...');
+      return;
+    }
+
+    console.log('=== Начало аудиозвонка ===');
+    console.log('Caller:', user.uid, profile.username);
+    console.log('Callee:', contact.uid, contact.username);
+
+    setCalling(true);
+    try {
+      const callsRef = collection(db, "calls");
+      const callData = {
+        caller: user.uid,
+        callerName: profile.username,
+        callee: contact.uid,
+        calleeName: contact.username,
+        status: "calling",
+        createdAt: serverTimestamp(),
+        type: "audio"
+      };
+
+      console.log('Создаю документ в calls...', callData);
+      const ref = await addDoc(callsRef, callData);
+      console.log('Аудиозвонок создан! ID:', ref.id);
+
+      // Отправляем Push-уведомление о звонке
+      await sendCallNotification(contact.uid, profile.username, "audio", ref.id);
+      console.log('Push-уведомление отправлено');
+
+      setCallState({ callId: ref.id, isCaller: true });
+    } catch (error) {
+      console.error('=== Ошибка аудиозвонка ===');
+      console.error(error);
+      alert('Не удалось создать звонок: ' + (error as Error).message);
+      setCalling(false);
+    }
+  };
+
   const formatTime = (ts: any) => {
     if (!ts) return "";
     const d = ts.toDate?.() || new Date(ts);
@@ -508,6 +651,16 @@ export default function Chat({ contact, onBack }: Props) {
           </div>
         </div>
         <button
+          className="btn-starred"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowPinned(!showPinned);
+          }}
+          title="Закреплённые"
+        >
+          📌
+        </button>
+        <button
           className="btn-search"
           onClick={(e) => {
             e.stopPropagation();
@@ -516,6 +669,16 @@ export default function Chat({ contact, onBack }: Props) {
           title="Поиск"
         >
           🔍
+        </button>
+        <button
+          className="btn-starred"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowStarred(!showStarred);
+          }}
+          title="Избранное"
+        >
+          ⭐
         </button>
         <button
           className="btn-video-call"
@@ -530,6 +693,53 @@ export default function Chat({ contact, onBack }: Props) {
         >
           {calling ? "📞..." : "📹"}
         </button>
+        <button
+          className="btn-video-call"
+          onClick={(e) => {
+            e.stopPropagation();
+            startAudioCall();
+          }}
+          disabled={calling}
+          title="Аудиозвонок"
+          style={{ opacity: calling ? 0.5 : 1, cursor: calling ? 'not-allowed' : 'pointer' }}
+        >
+          {calling ? "📞..." : "📞"}
+        </button>
+        <button
+          className="btn-starred"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowPinned(!showPinned);
+          }}
+          title="Закреплённые"
+        >
+          📌
+        </button>
+        <button
+          className="btn-search"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowSearch(!showSearch);
+          }}
+          title="Поиск"
+        >
+          🔍
+        </button>
+        <button
+          className="btn-search"
+          onClick={(e) => {
+            e.stopPropagation();
+            openChatSettings();
+          }}
+          title="Настройки чата"
+        >
+          ⚙️
+        </button>
+        <div style={{ width: '8px' }} />
+        <div style={{ flex: 1 }} />
+        {contactOnline && (
+          <div style={{ width: '10px', height: '10px', background: '#3fb950', borderRadius: '50%', boxShadow: '0 0 8px #3fb950' }} title="Онлайн" />
+        )}
       </div>
 
       {showSearch && (
@@ -549,6 +759,32 @@ export default function Chat({ contact, onBack }: Props) {
         </div>
       )}
 
+      {showStarred && (
+        <div className="starred-panel">
+          <div className="starred-header">
+            <span>⭐ Избранные сообщения</span>
+            <button className="btn-close-starred" onClick={() => setShowStarred(false)}>✕</button>
+          </div>
+          <div className="starred-messages">
+            {messages.filter(m => m.starred).length === 0 ? (
+              <div className="starred-empty">Нет избранных сообщений</div>
+            ) : (
+              messages.filter(m => m.starred).map(m => (
+                <div key={m.id} className="starred-item" onClick={() => {
+                  // Прокрутка к сообщению
+                  const el = document.getElementById(`msg-${m.id}`);
+                  el?.scrollIntoView({ behavior: "smooth" });
+                  setShowStarred(false);
+                }}>
+                  <span className="starred-text">{m.text.substring(0, 50)}{m.text.length > 50 ? "..." : ""}</span>
+                  <span className="starred-time">{formatTime(m.createdAt)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="messages-area" onClick={() => setShowStickers(false)}>
         {groups.map(({ date, msgs }) => (
           <div key={date}>
@@ -557,12 +793,7 @@ export default function Chat({ contact, onBack }: Props) {
               const mine = m.uid === user?.uid;
               if (m.type === "sticker") {
                 return (
-                  <div
-                    key={m.id}
-                    className={`msg-row ${mine ? "mine" : "theirs"}`}
-                    onMouseDown={(e) => handleLongPress(m, e)}
-                    onTouchStart={(e) => handleLongPress(m, e)}
-                  >
+                  <div key={m.id} className={`msg-row ${mine ? "mine" : "theirs"}`}>
                     {!mine && <span className="msg-avatar">{contact.avatar}</span>}
                     <div className="msg-sticker">
                       <span className="sticker-big">{m.text}</span>
@@ -573,12 +804,7 @@ export default function Chat({ contact, onBack }: Props) {
               }
               if (m.type === "image") {
                 return (
-                  <div
-                    key={m.id}
-                    className={`msg-row ${mine ? "mine" : "theirs"}`}
-                    onMouseDown={(e) => handleLongPress(m, e)}
-                    onTouchStart={(e) => handleLongPress(m, e)}
-                  >
+                  <div key={m.id} className={`msg-row ${mine ? "mine" : "theirs"}`}>
                     {!mine && <span className="msg-avatar">{contact.avatar}</span>}
                     <div className={`msg-bubble ${mine ? "mine" : "theirs"}`}>
                       <a href={m.fileUrl} target="_blank" rel="noopener noreferrer" className="msg-image-link">
@@ -591,12 +817,7 @@ export default function Chat({ contact, onBack }: Props) {
               }
               if (m.type === "file") {
                 return (
-                  <div
-                    key={m.id}
-                    className={`msg-row ${mine ? "mine" : "theirs"}`}
-                    onMouseDown={(e) => handleLongPress(m, e)}
-                    onTouchStart={(e) => handleLongPress(m, e)}
-                  >
+                  <div key={m.id} className={`msg-row ${mine ? "mine" : "theirs"}`}>
                     {!mine && <span className="msg-avatar">{contact.avatar}</span>}
                     <div className={`msg-bubble ${mine ? "mine" : "theirs"}`}>
                       <a href={m.fileUrl} target="_blank" rel="noopener noreferrer" className="msg-file-link">
@@ -613,12 +834,7 @@ export default function Chat({ contact, onBack }: Props) {
               }
               if (m.type === "voice") {
                 return (
-                  <div
-                    key={m.id}
-                    className={`msg-row ${mine ? "mine" : "theirs"}`}
-                    onMouseDown={(e) => handleLongPress(m, e)}
-                    onTouchStart={(e) => handleLongPress(m, e)}
-                  >
+                  <div key={m.id} className={`msg-row ${mine ? "mine" : "theirs"}`}>
                     {!mine && <span className="msg-avatar">{contact.avatar}</span>}
                     <div className={`msg-bubble ${mine ? "mine" : "theirs"} msg-voice`}>
                       <AudioPlayer src={m.fileUrl} duration={m.duration} />
@@ -629,12 +845,7 @@ export default function Chat({ contact, onBack }: Props) {
               }
               if (m.type === "video") {
                 return (
-                  <div
-                    key={m.id}
-                    className={`msg-row ${mine ? "mine" : "theirs"}`}
-                    onMouseDown={(e) => handleLongPress(m, e)}
-                    onTouchStart={(e) => handleLongPress(m, e)}
-                  >
+                  <div key={m.id} className={`msg-row ${mine ? "mine" : "theirs"}`}>
                     {!mine && <span className="msg-avatar">{contact.avatar}</span>}
                     <div className={`msg-bubble ${mine ? "mine" : "theirs"}`}>
                       <video
@@ -653,27 +864,43 @@ export default function Chat({ contact, onBack }: Props) {
                   id={`msg-${m.id}`}
                   key={m.id}
                   className={`msg-row ${mine ? "mine" : "theirs"}`}
-                  onMouseDown={(e) => handleLongPress(m, e)}
-                  onTouchStart={(e) => handleLongPress(m, e)}
+                  onMouseDown={(e) => handleLongPress(e, m)}
+                  onMouseUp={handlePressEnd}
+                  onMouseLeave={handlePressEnd}
+                  onTouchStart={(e) => handleLongPress(e, m)}
+                  onTouchEnd={handlePressEnd}
                 >
                   {!mine && <span className="msg-avatar">{contact.avatar}</span>}
                   <div className={`msg-bubble ${mine ? "mine" : "theirs"}`}>
-                    {m.replyTo && (
-                      <div className="msg-reply" onClick={() => {
-                        const el = document.getElementById(`msg-${m.replyTo?.messageId}`);
-                        el?.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }}>
-                        <span className="msg-reply-line"></span>
-                        <span className="msg-reply-text">{m.replyTo.text}</span>
+                    {replyTo?.id === m.id && (
+                      <div style={{ fontSize: '12px', opacity: 0.7, marginBottom: '4px', padding: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '4px' }}>
+                        💬 Ответ: {replyTo.text.substring(0, 50)}
                       </div>
                     )}
                     <span className="msg-text">{m.text}</span>
                     <div className="msg-meta">
-                      <span className="msg-time">
-                        {formatTime(m.createdAt)}
-                        {m.edited && ' (изм.)'}
-                      </span>
+                      <span className="msg-time">{formatTime(m.createdAt)}</span>
                     </div>
+                    {/* Reactions */}
+                    {m.reactions && Object.keys(m.reactions).length > 0 && (
+                      <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                        {Object.entries(m.reactions).map(([emoji, uids]) => (
+                          <span
+                            key={emoji}
+                            style={{
+                              fontSize: '12px',
+                              padding: '2px 6px',
+                              background: uids.includes(user?.uid || '') ? 'var(--accent)' : 'rgba(0,0,0,0.2)',
+                              borderRadius: '12px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => setShowReactions({ visible: true, messageId: m.id })}
+                          >
+                            {emoji} {uids.length}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -689,49 +916,316 @@ export default function Chat({ contact, onBack }: Props) {
         <div ref={messagesEndRef} />
       </div>
 
-      {longPressMenu && (
-        <>
-          <div className="long-press-overlay" onClick={() => setLongPressMenu(null)} />
-          <div className="long-press-menu" style={{ top: longPressMenu.y - 80, left: longPressMenu.x - 100 }}>
-            <button className="long-press-option" onClick={() => handleCopyMessage(longPressMenu.msg)}>
-              📋 Копировать
-            </button>
-            <button className="long-press-option" onClick={() => handleReplyMessage(longPressMenu.msg)}>
-              ↩️ Ответить
-            </button>
-            {longPressMenu.msg.uid === user?.uid && (
-              <>
-                <button className="long-press-option" onClick={() => handleEditMessage(longPressMenu.msg)}>
-                  ✏️ Изменить
-                </button>
-                <button className="long-press-option delete" onClick={() => handleDeleteMessage(longPressMenu.msg)}>
-                  🗑️ Удалить
-                </button>
-              </>
-            )}
-            <button className="long-press-option" onClick={(e) => handleForwardMessage(longPressMenu.msg, e)}>
-              ➡️ Переслать
-            </button>
+      {/* Pinned Messages Panel */}
+      {showPinned && pinnedMessages.length > 0 && (
+        <div className="starred-panel">
+          <div className="starred-header">
+            <span>📌 Закреплённые сообщения ({pinnedMessages.length})</span>
+            <button className="btn-close-starred" onClick={() => setShowPinned(false)}>✕</button>
           </div>
-        </>
+          <div className="starred-messages">
+            {pinnedMessages.map(m => (
+              <div key={m.id} className="starred-item" onClick={() => {
+                const el = document.getElementById(`msg-${m.id}`);
+                el?.scrollIntoView({ behavior: "smooth" });
+                setShowPinned(false);
+              }}>
+                <span className="starred-text">📌 {m.text.substring(0, 50)}{m.text.length > 50 ? "..." : ""}</span>
+                <span className="starred-time">{formatTime(m.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      {forwardMenu && (
-        <>
-          <div className="long-press-overlay" onClick={() => setForwardMenu(null)} />
-          <div className="long-press-menu" style={{ top: forwardMenu.y - 40, left: forwardMenu.x - 100 }}>
-            <button className="long-press-option" onClick={() => {
-              // Пересылка в текущий чат
-              send(`↪️ Пересланное сообщение:\n${forwardMenu.msg.text}`, 'text');
-              setForwardMenu(null);
-            }}>
-              ➡️ Переслать сюда
+      {/* Attached Files Preview */}
+      {attachedFiles.length > 0 && (
+        <div style={{ padding: '8px 16px', background: 'var(--bg2)', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text2)' }}>📎 Прикреплено файлов: {attachedFiles.length}</span>
+            <button onClick={() => setAttachedFiles([])} style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px' }}>✕ Очистить</button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px' }}>
+            {attachedFiles.map((file, i) => (
+              <div key={i} style={{ minWidth: '80px', padding: '8px', background: 'var(--bg3)', borderRadius: '8px', textAlign: 'center' }}>
+                <span style={{ fontSize: '24px' }}>{file.type.startsWith('image/') ? '🖼️' : file.type.startsWith('video/') ? '🎬' : file.type.startsWith('audio/') ? '🎵' : '📄'}</span>
+                <div style={{ fontSize: '10px', color: 'var(--text2)', marginTop: '4px', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                <div style={{ fontSize: '9px', color: 'var(--text3)', marginTop: '2px' }}>{(file.size / 1024).toFixed(1)} KB</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="modal-overlay"
+          onClick={closeContextMenu}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000 }}
+        >
+          <div
+            className="modal-card"
+            style={{
+              position: 'absolute',
+              left: contextMenu.x,
+              top: contextMenu.y,
+              maxWidth: '250px',
+              padding: '8px',
+              background: 'var(--bg2)',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="delete-menu-item"
+              onClick={() => handlePinMessage(contextMenu.messageId)}
+              style={{ width: '100%', padding: '10px', textAlign: 'left' }}
+            >
+              📌 Закрепить
             </button>
-            <button className="long-press-option" onClick={() => setForwardMenu(null)}>
-              ✕ Отмена
+            <button
+              className="delete-menu-item"
+              onClick={() => {
+                const msg = messages.find(m => m.id === contextMenu.messageId);
+                if (msg) handleReply(msg);
+              }}
+              style={{ width: '100%', padding: '10px', textAlign: 'left' }}
+            >
+              💬 Ответить
+            </button>
+            <button
+              className="delete-menu-item"
+              onClick={() => setShowReactions({ visible: true, messageId: contextMenu.messageId })}
+              style={{ width: '100%', padding: '10px', textAlign: 'left' }}
+            >
+              😊 Реакции
+            </button>
+            <button
+              className="delete-menu-item"
+              onClick={() => handleForward(messages.find(m => m.id === contextMenu.messageId)!)}
+              style={{ width: '100%', padding: '10px', textAlign: 'left' }}
+            >
+              ➤ Переслать
+            </button>
+            <button
+              className="delete-menu-item"
+              onClick={() => handleStar(contextMenu.messageId)}
+              style={{ width: '100%', padding: '10px', textAlign: 'left' }}
+            >
+              ⭐ В избранное
+            </button>
+            <button
+              className="delete-menu-item delete-danger"
+              onClick={() => handleDelete(contextMenu.messageId)}
+              style={{ width: '100%', padding: '10px', textAlign: 'left', color: 'var(--red)' }}
+            >
+              🗑️ Удалить
             </button>
           </div>
-        </>
+        </div>
+      )}
+
+      {/* Reactions Picker */}
+      {showReactions && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowReactions(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1001 }}
+        >
+          <div
+            className="modal-card"
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              padding: '12px',
+              background: 'var(--bg2)',
+              borderRadius: '16px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', maxWidth: '300px' }}>
+              {['👍', '👎', '❤️', '😂', '😮', '😢', '😡', '🎉', '🔥', '✨'].map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => handleReaction(showReactions.messageId, emoji)}
+                  style={{
+                    fontSize: '28px',
+                    padding: '8px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    transition: 'transform 0.1s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Settings Modal */}
+      {showChatSettings && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowChatSettings(false)}
+        >
+          <div
+            className="modal-card"
+            style={{ maxWidth: '500px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button onClick={() => setShowChatSettings(false)} style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: '20px', cursor: 'pointer' }}>←</button>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold' }}>⚙️ Настройки чата</h3>
+              </div>
+              <button className="modal-close" onClick={() => setShowChatSettings(false)}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--text2)', textTransform: 'uppercase' }}>Название чата</label>
+                <input
+                  type="text"
+                  value={chatName}
+                  onChange={(e) => setChatName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'var(--bg3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--text2)', textTransform: 'uppercase' }}>Описание</label>
+                <textarea
+                  value={chatDescription}
+                  onChange={(e) => setChatDescription(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'var(--bg3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    color: 'var(--text)',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '14px' }}>📢 Это канал</span>
+                <button
+                  onClick={() => setIsChannel(!isChannel)}
+                  style={{
+                    padding: '8px 16px',
+                    background: isChannel ? 'var(--accent)' : 'var(--surface2)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isChannel ? 'Вкл' : 'Выкл'}
+                </button>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '14px' }}>⏳ Исчезающие сообщения</span>
+                <button
+                  onClick={() => setDisappearingMessages(!disappearingMessages)}
+                  style={{
+                    padding: '8px 16px',
+                    background: disappearingMessages ? 'var(--accent)' : 'var(--surface2)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {disappearingMessages ? 'Вкл' : 'Выкл'}
+                </button>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                <button
+                  className="settings-btn-save"
+                  onClick={calculateStats}
+                  style={{ flex: 1 }}
+                >
+                  📊 Статистика
+                </button>
+                <button
+                  className="settings-btn-save"
+                  onClick={exportChat}
+                  style={{ flex: 1 }}
+                >
+                  💾 Экспорт
+                </button>
+                <button
+                  className="settings-btn-cancel"
+                  onClick={() => setShowChatSettings(false)}
+                  style={{ flex: 1 }}
+                >
+                  Отмена
+                </button>
+                <button
+                  className="settings-btn-save"
+                  onClick={saveChatSettings}
+                  style={{ flex: 1 }}
+                >
+                  Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Stats Modal */}
+      {showStats && (
+        <div className="modal-overlay" onClick={() => setShowStats(false)}>
+          <div className="modal-card" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold' }}>📊 Статистика чата</h3>
+              <button className="modal-close" onClick={() => setShowStats(false)}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '16px', background: 'var(--bg3)', borderRadius: '12px' }}>
+                <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--accent)' }}>{chatStats.total}</div>
+                <div style={{ fontSize: '14px', color: 'var(--text2)' }}>Всего сообщений</div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ padding: '16px', background: 'var(--bubble-mine)', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>{chatStats.mine}</div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>Ваши</div>
+                </div>
+                <div style={{ padding: '16px', background: 'var(--bubble-theirs)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text)' }}>{chatStats.theirs}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Собеседника</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {showStickers && (
@@ -764,26 +1258,26 @@ export default function Chat({ contact, onBack }: Props) {
         </div>
       )}
 
-      {replyMessage && (
-        <div className="reply-preview">
-          <div className="reply-preview-content">
-            <span className="reply-preview-label">↩️ Ответ @{replyMessage.username}</span>
-            <span className="reply-preview-text">{replyMessage.text.substring(0, 80)}{replyMessage.text.length > 80 ? '...' : ''}</span>
+      <form className="chat-input-bar" onSubmit={(e) => {
+        e.preventDefault();
+        if (editingMessage) {
+          saveEditMessage();
+        } else {
+          sendText(e);
+        }
+      }} onKeyDown={(e) => {
+        if (e.key === 'Enter' && e.ctrlKey) {
+          sendText(e);
+        }
+      }}>
+        {replyTo && (
+          <div style={{ marginBottom: '8px', padding: '8px', background: 'var(--bg3)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+              <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>💬 Ответ</span>: {replyTo.text.substring(0, 50)}{replyTo.text.length > 50 ? '...' : ''}
+            </div>
+            <button type="button" onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: '16px' }}>✕</button>
           </div>
-          <button type="button" className="reply-preview-cancel" onClick={cancelReply}>✕</button>
-        </div>
-      )}
-
-      {editingMessage && (
-        <div className="edit-preview">
-          <div className="edit-preview-content">
-            <span className="edit-preview-label">✏️ Редактирование сообщения</span>
-          </div>
-          <button type="button" className="edit-preview-cancel" onClick={cancelEdit}>✕</button>
-        </div>
-      )}
-
-      <form className="chat-input-bar" onSubmit={editingMessage ? (e) => { e.preventDefault(); saveEditMessage(); } : sendText}>
+        )}
         <input
           type="file"
           ref={fileInputRef}

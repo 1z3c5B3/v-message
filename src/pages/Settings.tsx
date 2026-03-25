@@ -3,11 +3,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useNotification } from "@/context/NotificationContext";
 import { useTheme, themes } from "@/lib/theme";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
 
 const AVATARS = ["😊","😎","🤩","🥳","🐶","🐱","🦊","🐼","🐨","🦁","🌸","⚡","🔥","🌈","💎","🎮","🎸","🚀","👾","🍕","🦄","🐉","🌺","🎯","🏆","🎭","🎨","🌙","☀️","❤️"];
+
 const ADMIN_PASSWORD = "vgd3303vgd";
-const APP_VERSION = "2.4.0";
 
 export default function Settings() {
   const { profile, logout, updateProfile, changePassword, deleteAccount } = useAuth();
@@ -29,13 +29,12 @@ export default function Settings() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   
-  // Admin ban panel
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState("");
-  const [isAdminVerified, setIsAdminVerified] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
-  const [showBanPanel, setShowBanPanel] = useState(false);
-  const [banLoading, setBanLoading] = useState(false);
+  // Admin panel
+  const [versionClicks, setVersionClicks] = useState(0);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const saveAvatar = async (a: string) => {
     setAvatar(a);
@@ -47,6 +46,75 @@ export default function Settings() {
       setUsernameMsg(e?.message || "Ошибка");
     }
     setSaving(false);
+  };
+
+  // Admin panel functions
+  const handleVersionClick = () => {
+    const newCount = versionClicks + 1;
+    setVersionClicks(newCount);
+    
+    if (newCount >= 5) {
+      setVersionClicks(0);
+      setShowAdminPanel(true);
+    }
+    
+    // Сброс счетчика через 2 секунды
+    setTimeout(() => setVersionClicks(0), 2000);
+  };
+
+  const checkAdminPassword = () => {
+    if (adminPassword === ADMIN_PASSWORD) {
+      loadAdminUsers();
+    } else {
+      alert("❌ Неверный пароль!");
+    }
+  };
+
+  const loadAdminUsers = async () => {
+    setAdminLoading(true);
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const usersList = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAdminUsers(usersList);
+      setShowAdminPanel(false);
+    } catch (error) {
+      console.error("Error loading users:", error);
+      alert("Ошибка загрузки пользователей");
+    }
+    setAdminLoading(false);
+  };
+
+  const banUser = async (userId: string) => {
+    if (!confirm("Заблокировать пользователя?")) return;
+    try {
+      await updateDoc(doc(db, "users", userId), { banned: true });
+      alert("✅ Пользователь заблокирован");
+      loadAdminUsers();
+    } catch (error) {
+      alert("Ошибка: " + error);
+    }
+  };
+
+  const unbanUser = async (userId: string) => {
+    if (!confirm("Разблокировать пользователя?")) return;
+    try {
+      await updateDoc(doc(db, "users", userId), { banned: false });
+      alert("✅ Пользователь разблокирован");
+      loadAdminUsers();
+    } catch (error) {
+      alert("Ошибка: " + error);
+    }
+  };
+
+  const deleteUser = async (userId: string) => {
+    if (!confirm("⚠️ УДАЛИТЬ пользователя навсегда?")) return;
+    try {
+      await deleteDoc(doc(db, "users", userId));
+      alert("✅ Пользователь удалён");
+      loadAdminUsers();
+    } catch (error) {
+      alert("Ошибка: " + error);
+    }
   };
 
   const handleSaveUsername = async (e: React.FormEvent) => {
@@ -85,84 +153,12 @@ export default function Settings() {
   const handleDeleteAccount = async () => {
     if (deletePassword.length < 6) { setUsernameMsg("Введите пароль"); return; }
     if (deleteConfirm !== profile?.username) { setUsernameMsg("Имя не совпадает"); return; }
-
+    
     try {
       await deleteAccount(deletePassword);
     } catch (err: any) {
       setUsernameMsg(err?.message || "Ошибка удаления");
     }
-  };
-
-  const handleVersionClick = () => {
-    if (isAdminVerified) {
-      setShowBanPanel(!showBanPanel);
-    } else {
-      setShowAdminPassword(true);
-    }
-  };
-
-  const handleAdminPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminPasswordInput === ADMIN_PASSWORD) {
-      setIsAdminVerified(true);
-      setShowAdminPassword(false);
-      setAdminPasswordInput("");
-      setShowBanPanel(true);
-      await loadUsers();
-    } else {
-      alert("Неверный пароль!");
-      setAdminPasswordInput("");
-    }
-  };
-
-  const loadUsers = async () => {
-    setBanLoading(true);
-    try {
-      const snapshot = await getDocs(collection(db, "users"));
-      const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setUsers(usersList);
-    } catch (error) {
-      console.error("Ошибка загрузки пользователей:", error);
-      alert("Не удалось загрузить пользователей");
-    }
-    setBanLoading(false);
-  };
-
-  const handleBanUser = async (userId: string, username: string) => {
-    if (!confirm(`Заблокировать пользователя ${username}?`)) return;
-    
-    try {
-      await updateDoc(doc(db, "users", userId), {
-        banned: true,
-        bannedAt: new Date().toISOString()
-      });
-      alert(`Пользователь ${username} заблокирован`);
-      await loadUsers();
-    } catch (error) {
-      console.error("Ошибка бана:", error);
-      alert("Ошибка при блокировке");
-    }
-  };
-
-  const handleUnbanUser = async (userId: string, username: string) => {
-    if (!confirm(`Разблокировать пользователя ${username}?`)) return;
-    
-    try {
-      await updateDoc(doc(db, "users", userId), {
-        banned: false,
-        bannedAt: null
-      });
-      alert(`Пользователь ${username} разблокирован`);
-      await loadUsers();
-    } catch (error) {
-      console.error("Ошибка разблокировки:", error);
-      alert("Ошибка при разблокировке");
-    }
-  };
-
-  const handleLogoutAdmin = () => {
-    setIsAdminVerified(false);
-    setShowBanPanel(false);
   };
 
   return (
@@ -351,88 +347,147 @@ export default function Settings() {
         </button>
       </div>
 
-      <div className="settings-section" style={{ textAlign: 'center', marginTop: '20px' }}>
-        <p 
+      <div className="settings-section">
+        <h3 className="settings-section-title">О приложении</h3>
+        <div
           onClick={handleVersionClick}
-          style={{ 
-            fontSize: '13px', 
-            color: 'var(--text3)', 
+          style={{
+            padding: '16px',
+            background: 'var(--bg3)',
+            borderRadius: '12px',
+            textAlign: 'center',
             cursor: 'pointer',
-            margin: 0
+            transition: 'background 0.2s'
           }}
         >
-          V-Message v{APP_VERSION} {isAdminVerified && '👑'}
-        </p>
+          <p style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>V-Message</p>
+          <p style={{ fontSize: '14px', color: 'var(--text2)', margin: '8px 0 0 0' }}>Версия 2.7v</p>
+          {versionClicks > 0 && versionClicks < 5 && (
+            <p style={{ fontSize: '12px', color: 'var(--accent)', marginTop: '8px' }}>
+              Ещё {5 - versionClicks} раз(а)...
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Modal для ввода пароля админа */}
-      {showAdminPassword && (
-        <div className="admin-modal-overlay" onClick={() => setShowAdminPassword(false)}>
-          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="admin-modal-title">🔐 Вход для администратора</h3>
-            <form onSubmit={handleAdminPasswordSubmit}>
-              <input
-                type="password"
-                placeholder="Введите пароль"
-                value={adminPasswordInput}
-                onChange={(e) => setAdminPasswordInput(e.target.value)}
-                className="settings-input"
-                autoFocus
-                style={{ marginBottom: '12px' }}
-              />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" className="settings-btn-cancel" onClick={() => setShowAdminPassword(false)} style={{ flex: 1 }}>
-                  Отмена
-                </button>
-                <button type="submit" className="settings-btn-save" style={{ flex: 1 }}>
-                  Войти
-                </button>
-              </div>
-            </form>
+      {/* Admin Panel Modal */}
+      {showAdminPanel && (
+        <div className="modal-overlay" onClick={() => setShowAdminPanel(false)}>
+          <div className="modal-card" style={{ maxWidth: '400px', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>🔐 Админ-панель</h3>
+            <input
+              type="password"
+              placeholder="Введите пароль"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && checkAdminPassword()}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'var(--bg3)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                color: 'var(--text)',
+                fontSize: '14px',
+                marginBottom: '16px'
+              }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="settings-btn-save"
+                onClick={checkAdminPassword}
+                style={{ flex: 1 }}
+              >
+                Войти
+              </button>
+              <button
+                className="settings-btn-cancel"
+                onClick={() => {
+                  setShowAdminPanel(false);
+                  setAdminPassword("");
+                }}
+                style={{ flex: 1 }}
+              >
+                Отмена
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Панель бана пользователей */}
-      {showBanPanel && isAdminVerified && (
-        <div className="ban-panel-overlay" onClick={handleLogoutAdmin}>
-          <div className="ban-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="ban-panel-header">
-              <h3>👑 Управление пользователями</h3>
-              <button className="ban-panel-close" onClick={handleLogoutAdmin}>✕</button>
+      {/* Admin Dashboard */}
+      {adminLoading && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '400px', padding: '24px', textAlign: 'center' }}>
+            <div className="spinner-lg" />
+            <p style={{ marginTop: '16px', color: 'var(--text2)' }}>Загрузка...</p>
+          </div>
+        </div>
+      )}
+
+      {adminUsers.length > 0 && (
+        <div className="modal-overlay" onClick={() => setAdminUsers([])}>
+          <div className="modal-card" style={{ maxWidth: '800px', maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 'bold' }}>👥 Управление пользователями ({adminUsers.length})</h3>
+              <button className="modal-close" onClick={() => setAdminUsers([])}>✕</button>
             </div>
             
-            {banLoading ? (
-              <div className="ban-panel-loading">Загрузка...</div>
-            ) : (
-              <div className="ban-panel-users">
-                <p className="ban-panel-info">Всего пользователей: {users.length}</p>
-                <div className="ban-panel-list">
-                  {users.map((u) => (
-                    <div key={u.id} className={`ban-user-item ${u.banned ? 'banned' : ''}`}>
-                      <div className="ban-user-info">
-                        <span className="ban-user-avatar">{u.avatar || '😊'}</span>
-                        <div className="ban-user-details">
-                          <span className="ban-user-name">{u.username}</span>
-                          {u.banned && <span className="ban-user-badge">🚫 Заблокирован</span>}
-                        </div>
-                      </div>
-                      <div className="ban-user-actions">
-                        {u.banned ? (
-                          <button className="ban-btn-unban" onClick={() => handleUnbanUser(u.id, u.username)}>
-                            ✅ Разблокировать
-                          </button>
-                        ) : (
-                          <button className="ban-btn-ban" onClick={() => handleBanUser(u.id, u.username)}>
-                            🚫 Заблокировать
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Пользователь</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Email</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Статус</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminUsers.map((user) => (
+                  <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{ fontSize: '24px', marginRight: '8px' }}>{user.avatar || '😊'}</span>
+                      {user.username || 'Без имени'}
+                    </td>
+                    <td style={{ padding: '12px', color: 'var(--text2)' }}>{user.email || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      {user.banned ? (
+                        <span style={{ color: 'var(--red)', fontSize: '12px' }}>🚫 Заблокирован</span>
+                      ) : (
+                        <span style={{ color: 'var(--green)', fontSize: '12px' }}>✅ Активен</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      {user.banned ? (
+                        <button
+                          className="settings-btn-save"
+                          onClick={() => unbanUser(user.id)}
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
+                        >
+                          ✅ Разблокировать
+                        </button>
+                      ) : (
+                        <button
+                          className="settings-btn-logout"
+                          onClick={() => banUser(user.id)}
+                          style={{ padding: '6px 12px', fontSize: '12px', marginRight: '8px' }}
+                        >
+                          🚫 Бан
+                        </button>
+                      )}
+                      <button
+                        className="settings-btn-logout"
+                        onClick={() => deleteUser(user.id)}
+                        style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--red)' }}
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

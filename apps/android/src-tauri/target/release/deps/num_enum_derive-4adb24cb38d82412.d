@@ -1,9 +1,0 @@
-C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\deps\num_enum_derive-4adb24cb38d82412.d: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\enum_attributes.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\parsing.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\utils.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\variant_attributes.rs
-
-C:\Users\Вадим\Desktop\v-msg-final\apps\android\src-tauri\target\release\deps\num_enum_derive-4adb24cb38d82412.dll: C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\lib.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\enum_attributes.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\parsing.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\utils.rs C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\variant_attributes.rs
-
-C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\lib.rs:
-C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\enum_attributes.rs:
-C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\parsing.rs:
-C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\utils.rs:
-C:\Users\Вадим\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\num_enum_derive-0.7.6\src\variant_attributes.rs:

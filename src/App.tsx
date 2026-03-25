@@ -7,10 +7,9 @@ import Chat from "@/pages/Chat";
 import GroupChat from "@/pages/GroupChat";
 import Contacts from "@/pages/Contacts";
 import Settings from "@/pages/Settings";
-import About from "@/pages/About";
 import { Group } from "@/pages/GroupCreate";
 
-type Tab = "chats" | "contacts" | "settings" | "about";
+type Tab = "chats" | "contacts" | "settings";
 type Page =
   | { type: "main"; tab: Tab }
   | { type: "chat"; contact: UserProfile }
@@ -52,7 +51,6 @@ function AppInner() {
         {tab === "chats" && <ChatList onOpenChat={openChat} onOpenGroup={openGroup} />}
         {tab === "contacts" && <Contacts onOpenChat={openChat} />}
         {tab === "settings" && <Settings />}
-        {tab === "about" && <About />}
       </div>
       <nav className="bottom-nav">
         <button className={`nav-btn ${tab === "chats" ? "active" : ""}`} onClick={() => setTab("chats")}>
@@ -66,10 +64,6 @@ function AppInner() {
         <button className={`nav-btn ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>
           <span className="nav-icon">⚙️</span>
           <span className="nav-label">Настройки</span>
-        </button>
-        <button className={`nav-btn ${tab === "about" ? "active" : ""}`} onClick={() => setTab("about")}>
-          <span className="nav-icon">ℹ️</span>
-          <span className="nav-label">О приложении</span>
         </button>
       </nav>
     </div>

@@ -1,156 +1,128 @@
-# 🚀 V-Message Desktop & Mobile Apps
+# 📱 V-Message Apps
 
-## 📁 Структура проекта
+Готовые приложения для всех платформ!
+
+---
+
+## 📁 Структура
 
 ```
-v-msg-final/
-├── apps/
-│   ├── windows/          # Приложение для Windows (.exe, .msi)
-│   │   ├── tauri.conf.json
-│   │   ├── package.json
-│   │   ├── icons/
-│   │   └── README.md
-│   └── android/          # Приложение для Android (.apk, .aab)
-│       ├── tauri.conf.json
-│       ├── package.json
-│       ├── icons/
-│       └── README.md
-├── src/                  # Исходный код (общий для всех платформ)
-├── dist/                 # Сборка (общая для всех платформ)
-└── package.json          # Корневой package.json
+Apps/
+├── Windows app/          # Приложение для Windows
+│   ├── dist/            # Веб-версия для Windows
+│   ├── README.md        # Инструкция по сборке
+│   └── v-message-web-2.8.0.zip  # Готовый архив
+│
+├── Android app/         # Приложение для Android
+│   ├── dist/           # Веб-версия для Android
+│   ├── README.md       # Инструкция по сборке
+│   └── v-message-web-2.8.0.zip  # Готовый архив
+│
+└── README.md           # Этот файл
 ```
 
 ---
 
-## 🖥️ Windows приложение
+## 🚀 Быстрая сборка
 
-### Требования
-- Windows 10/11 (64-bit)
-- Node.js 20.19+ или 22.12+
-- Rust (установить с https://rustup.rs/)
-- Visual Studio Build Tools 2022
+### Автоматическая сборка (все платформы)
 
-### Установка зависимостей
+Запустите в корневой папке:
 ```bash
-cd apps/windows
-npm install
+auto-build.bat
 ```
 
-### Запуск в режиме разработки
-```bash
-npm run dev
-```
-
-### Сборка .exe установщика
-```bash
-npm run build
-```
-
-### Файлы после сборки
-- `apps/windows/target/release/msi/V-Message_2.4.0_x64.msi`
-- `apps/windows/target/release/nsis/V-Message_2.4.0_x64-setup.exe`
+**Что делает:**
+1. ✅ Собирает веб-версию
+2. ✅ Копирует в папки платформ
+3. ✅ Синхронизирует Android
+4. ✅ Создаёт ZIP архивы
+5. ✅ Готовит к сборке EXE/APK
 
 ---
 
-## 📱 Android приложение
+## 🖥️ Windows
 
-### Требования
-- Android Studio Hedgehog или новее
-- Android SDK 24+
-- JDK 17+
-- Node.js 20.19+ или 22.12+
+### Файлы:
+- `Windows app/dist/` - Веб-версия
+- `Windows app/README.md` - Инструкция
 
-### Установка зависимостей
+### Сборка EXE:
 ```bash
-cd apps/android
-npm install
+cd ../../src-tauri
+cargo tauri build
 ```
 
-### Запуск в режиме разработки
-```bash
-npm run dev
-```
-
-### Сборка .apk
-```bash
-npm run build:apk
-```
-
-### Сборка .aab (для Google Play)
-```bash
-npm run build:aab
-```
-
-### Файлы после сборки
-- `apps/android/target/aarch64/release/app.apk`
-- `apps/android/target/aarch64/release/app.aab`
+**Результат:** `src-tauri/target/release/bundle/`
 
 ---
 
-## 🎨 Иконки
+## 📱 Android
 
-### Для Windows
-Создайте папку `apps/windows/icons/` и добавьте:
-- `icon.ico` (256x256)
-- `icon.png` (256x256)
+### Файлы:
+- `Android app/dist/` - Веб-версия
+- `Android app/README.md` - Инструкция
 
-### Для Android
-Создайте папку `apps/android/icons/` и добавьте:
-- `icon.png` (512x512)
-- `icon_foreground.png` (512x512)
-- `icon_background.png` (512x512)
+### Сборка APK:
+```bash
+cd ../../
+npx cap open android
+```
+
+В Android Studio: **Build → Build APK**
+
+**Результат:** `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
-## 🔐 Подпись APK (для релиза)
+## 🌐 Веб
 
-1. Создайте keystore:
+### Файлы:
+- `../dist/` - Готовая веб-версия
+
+### Деплой:
 ```bash
-keytool -genkey -v -keystore vmessage.keystore -alias vmessage -keyalg RSA -keysize 2048 -validity 10000
-```
+# Firebase
+firebase deploy --only hosting
 
-2. Положите `vmessage.keystore` в `apps/android/`
+# Netlify
+netlify deploy --prod --dir=../dist
 
-3. Обновите `tauri.conf.json`:
-```json
-"signing": {
-  "release": {
-    "storePassword": "ваш_пароль",
-    "keyPassword": "ваш_пароль",
-    "keyAlias": "vmessage",
-    "storeFile": "../vmessage.keystore"
-  }
-}
+# Vercel
+vercel --prod
 ```
 
 ---
 
-## 📦 Разрешения Android
+## ✅ Интерфейс
 
-В `apps/android/tauri.conf.json` уже настроены:
-- `RECORD_AUDIO` — голосовые сообщения и звонки
-- `CAMERA` — видеозвонки
-- `INTERNET` — доступ к сети
-- `POST_NOTIFICATIONS` — уведомления
-- `READ/WRITE_EXTERNAL_STORAGE` — файлы
+**1-в-1 как в веб-версии!**
+
+- ✅ Все 5 тем оформления
+- ✅ Все функции чата
+- ✅ Все звонки (видео + аудио)
+- ✅ Админ-панель
+- ✅ Push-уведомления
+- ✅ Все 50+ функций
 
 ---
 
-## 🛠️ Решение проблем
+## 📊 Версии
 
-### Ошибка: "Rust not found"
-Установите Rust: https://rustup.rs/
-
-### Ошибка: "Android SDK not found"
-Установите переменные окружения:
-- `ANDROID_HOME` = путь к SDK
-- `JAVA_HOME` = путь к JDK
-
-### Ошибка: "Port 3001 already in use"
-Остановите другие процессы или измените порт в `vite.config.ts`
+| Платформа | Версия | Статус |
+|-----------|--------|--------|
+| Web | 2.8.0 | ✅ Готово |
+| Windows | 2.8.0 | ✅ Готово к сборке |
+| Android | 2.8.0 | ✅ Готово к сборке |
 
 ---
 
 ## 📞 Поддержка
 
-Email: support@vmsg.app
+- Email: support@v-message.app
+- Telegram: @vmessage
+- Website: https://v-message.app
+
+---
+
+**V-Message 2.8v** - Быстро. Безопасно. Кроссплатформенно. 🚀

@@ -1,74 +1,60 @@
-name: Build Android APK
+name: Android APK Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main, master ]
+  workflow_dispatch:  # Ручной запуск
 
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
-      - name: Setup Java
+          cache: 'npm'
+
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '17'
-          
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-          
+          distribution: 'adopt'
+
       - name: Install dependencies
-        run: |
-          npm install
-          cd apps/android
-          npm install
-          
+        run: npm ci
+
       - name: Build web version
         run: npm run build
-        
-      - name: Setup Android Cargo.toml
+
+      - name: Setup Capacitor
         run: |
-          cd apps/android
-          cp src-tauri/Cargo.toml Cargo.toml
-          cp src-tauri/build.rs build.rs
-          mkdir -p src
-          cp src-tauri/src/lib.rs src/lib.rs
-          mkdir -p src-tauri/icons
-          cp icons/*.png src-tauri/icons/ 2>/dev/null || true
-          
-      - name: Build Android APK
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap sync android
+
+      - name: Build APK
         run: |
-          cd apps/android
-          npx tauri android build
-          
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: |
-            apps/android/target/**/*.apk
-            apps/android/gen/android/app/build/outputs/apk/**/*.apk
-          
+          name: V-Message-Debug-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: apps/android/target/aarch64/release/app.apk
+          files: android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
