@@ -61,7 +61,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: apps/android/target/aarch64/release/app.apk
+          path: |
+            apps/android/target/**/*.apk
+            apps/android/gen/android/app/build/outputs/apk/**/*.apk
           
       - name: Create Release
         uses: softprops/action-gh-release@v1
