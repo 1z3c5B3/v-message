@@ -36,7 +36,10 @@ jobs:
       - name: Setup Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap sync android
+          npx cap add android --force
+
+      - name: Sync Android
+        run: npx cap sync android
 
       - name: Build APK
         run: |
@@ -47,7 +50,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V-Message-Debug-APK
+          name: V-Message-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
